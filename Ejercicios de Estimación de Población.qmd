@@ -1,0 +1,148 @@
+---
+title: "Ejercicios Estimación Población"
+format: html
+editor: visual
+---
+
+## Ejercicio de estimación de población
+
+El siguiente documento corresponde a la resolución de un ejercicio del curso de estadística y data mining de Keep Coding, presentado por el profesor José María González.
+
+Se expandió un poco la explicación original para facilitar la lectura, se utilizaron las fórmulas expuestas en clase.
+
+## Problema de los tanques alemanes
+
+En tiempos de guerra, un objetivo clave de la inteligencia militar es determinar la fuerza numérica del enemigo: en la Segunda Guerra Mundial, los Aliados querían estimar el número de tanques que tenían los alemanes, y trataron de solucionar este problema desde dos enfoques diferentes: la recopilación de fuentes de inteligencia convencionales, y la estimación estadística. El enfoque estadístico resultó ser mucho más preciso que los métodos convencionales de inteligencia, según demostró el análisis a posteriori publicado por Ruggles y Brodie. \[Wikipedia\] (https://es.wikipedia.org/wiki/Problema_de_los_tanques_alemanes)
+
+Se buscaba **obtener el número de tanques** producidos por los alemanes, sin emabrgo sólo contaban con los números de serie de algunas piezas de tanques que habian sido destruidos en batalla
+
+Por lo tanto, se debió estimar el máximo de una distribuición uniforme. Obtendremos 5 numeros de serie al azar
+
+```{r}
+set.seed(100)
+#Obtenemos el numero de serie de 5 tanques aleatorios, se le dará el rango 1:400, se utiliza floor() porque solo se necesita la parte entera
+capturedSerialNo <- floor(runif(5, 1, 400))
+#Para los números de serie le de da como máximo 400, que será el valor buscado
+cat("Los números de serie de los tanques capturados son", capturedSerialNo)
+```
+
+### Estimación usando la media
+
+Ahora que tenemos los 5 números de serie, debemos estimar la media de la población total ($\mu$), para esto, primero debemos calcular la media de nuestra muestra, a la cual llamaremos media_muestral
+
+```{r}
+media_muestral <- mean(capturedSerialNo)
+cat("La media muestral para esta muestra será:", media_muestral)
+```
+
+La siguiente fórmula corresponde al cálculo de la media, en donde mu es igual a la semisuma de a y b, en donde "a" se asume "1" (que los números de serie partieron en 1) y b es nuestra incógnita. Por el lado derecho se tiene que la media muestral será la suma de las muestras dividida en el número de muestras.
+
+$$
+\mu=\frac{a+b}{2}=\frac{1}{N}\sum_{i=1}^N{x_i}=\bar{x}
+$$
+
+Se iguala la media muestral a la semisuma de los valores límites de la población $$
+\bar{x}=\frac{a+b}{2}\\
+$$
+
+Luego, se despeja b $$
+2\cdot\bar{x}=a+b\\
+b=2\cdot\bar{x}-a \\
+$$
+
+Entonces, podremos calcular el valor máximo de la población (b)
+
+```{r}
+a <- 1 #Se asume que el primer número de serie "a" es "1"
+b_by_mean <- 2 * media_muestral - a
+
+paste("El número de tanques de la población, según el calculo con la media será:", b_by_mean)
+```
+
+### Estimación usando la varianza
+
+Ahora se estimará la población total, con la varianza de la muestra Se sabe que la varianza de una variable aleatoria discreta está dada por:
+
+$$
+\sigma^2=\frac{(b-a)^2}{12} \\
+$$
+
+Y también se sabe que la varianza de una muestra está dada por:
+
+$$
+Var[x]=\frac{1}{N-1}\sum_{i=1}^N{(x_i-\bar{x})^2}
+$$
+
+Lo que se lee como "la suma de las diferencias entre los valores obtenidos y la media al cuadrado, dividido por el número de casos -1"
+
+Como nuestro objetivo es obtener el valor máximo final (b), entonces igualaremos ambas fórmulas y obtendremos la siguiente expresión:
+
+$$
+Var[x]=\frac{(b-a)^2}{12} \\
+12\cdot Var[x]=(b-a)^2\\
+b=a+\sqrt{12\cdot Var[x]}
+$$
+
+```{r}
+b_by_var <- a + sqrt(12*var(capturedSerialNo))
+cat("Luego el número de tanques de la población, según el calculo con la varianza será:", b_by_var)
+```
+
+Se puede observar que el cálculo con la varianza estuvo más cerca del numero total de tanques (que es 400 y sólo lo conocemos por la generacion de numeros de serie, y es unicamente ahí donde se utiliza, ya que el objetivo del problema es llegar a este valor sin conocerlo)
+
+Realizaremos iteraciones entonces, para ver los resultados con ambos métodos
+
+```{r}
+set.seed(100)
+iteraciones <- 100    #Definimos las iteraciones
+#Se crean dos vectores numérico de 100 elementos cada uno para almacenar los resultados
+means <- numeric(iteraciones) #Almacenará las medias 
+vars <- numeric(iteraciones)  #Almacenará las varianzas
+a <- 1 #(Se asume que el primer número de serie es '1')
+
+b_iter_means <-numeric(iteraciones) #Almacenará el valor máximo por medias
+b_iter_vars <- numeric(iteraciones) #Almacenará el máximo por varianzas
+
+for (i in 1:iteraciones){
+  serialnumbers <-runif(5,1,400) #Tomará 5 numeros de serie aleatorios por iteración
+  means[i] <- mean(serialnumbers) #Añade la media de esa iteración a means
+  b_iter_means[i] <- 2 * means[i] - a #Se almacena el valor máximo calculado por medias
+  vars[i] <- var(serialnumbers)   #Añade la varianza a vars
+  b_iter_vars[i] <- a + sqrt(12*vars[i]) #Se almacena el valor máximo calculado por medias
+}
+
+```
+
+Entonces tenemos las iteraciones de ambos métodos, graficaremos el histograma para ambos casos
+
+```{r}
+
+gather_all <- rbind(b_iter_means, b_iter_vars) #Juntamos ambos resultados
+hist(b_iter_means, col=rgb(0,0,1,1/4), xlim=c(100,600), ylim = c(0,50))
+hist(b_iter_vars, col=rgb(1,0,0,1/4), xlim=c(100,600), add = T)
+
+legend("topleft", 
+       legend = c("Valor máximo por medias", "Valor máximo por varianzas"),
+       pch = 15,
+       col = c(rgb(0,0,1,1/8),rgb(1,0,0,1/8))
+         )
+```
+
+Creamos un dataframey los gráficos superpuestos de densidad
+
+```{r}
+require(ggplot2)
+df <- data.frame(by_means = numeric(100), by_vars = numeric(100))
+df$by_means <- b_iter_means
+df$by_vars <- b_iter_vars
+
+ggplot(df, aes(x = by_means, color = "by_means")) +
+  geom_density(alpha = 0.5) +
+  geom_density(aes(x = by_vars, color = "by_vars"), alpha = 0.5) +
+  labs(title = "Densidad de frecuencia en cálculos de valores máximos por media y por varianza", x = "Valor", y = "Densidad") +
+  scale_color_manual(values = c("blue", "red")) +
+  theme_minimal()
+
+```
+
+No se puede establecer una conclusión clara. Se deberán realizar más iteraciones para concluir que método es mejor
