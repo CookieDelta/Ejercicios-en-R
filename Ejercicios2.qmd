@@ -1,0 +1,135 @@
+---
+title: "Ejercicios2"
+format: html
+editor: visual
+---
+
+## CSV edad española
+
+Usando el CSV del INE.¿Cual es la media de edad de la población española? ¿y la mediana? ¿la moda?
+
+$$
+    \bar{x} =  \frac{1}{\text{poblaciónTotal}} \sum _{i=1}^N edad_i · poblaciónConEdad_i 
+$$
+
+```{r}
+library(dplyr)
+library(tidyr)
+poblacion_raw<-read.csv("data/9663bsc.csv",skip=0,fileEncoding="ISO-8859-1",header=T, sep=';',stringsAsFactor=F)
+
+poblacion <- poblacion_raw |> mutate(Total=as.numeric(gsub("\\.","",Total))) |> pivot_wider(names_from = Sexo, values_from = Total)  |>
+ mutate(edad=as.numeric(gsub("año(s|)","",Edad.simple))) |> drop_na() |> select(-c(Periodo,Edad.simple)) |>
+ rename(Total='Ambos sexos') |> arrange(edad)
+```
+
+```{r}
+head(poblacion)
+```
+
+Primero calculamos la moda:
+
+```{r}
+moda <- poblacion[which.max(poblacion$Total),]$edad
+cat("La moda es:", moda, "años")
+```
+
+La mediana de la población:
+
+la función (o columna) población\$prob contiene valores de 0 a 1. Al restarle 0.5 obtenemos un nuevo conjunto de valores que van desde el -0.5 a 0.5 para el 0 y 1 respectivamente. Luego, para poder obtener el valor del medio, se busca el valor más cercano al nuevo cero, tendríamos entonces la primera parte de la formula
+
+(poblacion\$prob-0.5) transforma los valores de \[0:1\] a \[-0.5 : 0.5\]
+
+abs(poblacion\$prob-0.5) transforma los valores a absolutos para comparacion directa
+
+luego solo queda pedir la mínima distancia a cero (la mitad de los datos, añadiendo
+
+\[which.min(columna_a_evaluar)\],\$columna_a_devolver
+
+```{r}
+poblacion$prob <- cumsum(poblacion$Total)/sum(poblacion$Total) #corresponde al acumulado de probabilidad
+#Finalmente la fórmula será
+mediana <- poblacion[which.min(abs(poblacion$prob-0.5)),]$edad
+
+cat("La mediana será:", mediana)
+```
+
+La media de la población:
+
+```{r}
+media <- sum(poblacion$Total*poblacion$edad)/sum(poblacion$Total)
+cat("La media de la poblacion total es", media, "años")
+```
+
+## Peso al nacer
+
+Leer el dataset que se encuentra en data/birthweight_reduced.csv.
+
+Para la columna Birthweight: Calcula la media de los dos grupos para madres fumadores y no fumadores. Calcula su intervalo de confianza.
+
+```{r}
+bwt <- read.csv("./data/birthweight_reduced.csv")
+head(bwt)
+```
+
+```{r}
+#se cambian los valores de la columna smoker 0 y 1 a No y Yes respectivamente
+bwt$smoker <- factor(bwt$smoker, labels = c('No', 'Yes'))
+bwt_no_smoker <- bwt |> filter(smoker=='No') #df solo no fumadoras
+bwt_smoker <- bwt |> filter(smoker=='Yes') #df solo fumadoras
+```
+
+```{r}
+t.test(bwt_smoker$Birthweight)
+```
+
+```{r}
+t.test(bwt_no_smoker$Birthweight)
+```
+
+```{r}
+bwt |> group_by(smoker) |> summarise(low=t.test(Birthweight)$conf.int[1], high=t.test(Birthweight)$conf.int[2])
+#revisar con más detenimiento los comandos
+```
+
+## Ejemplo probabilidad COVID
+
+Ejercicio se resuelve usando la distribución binomial. Supongamos que tenemos una población donde 5 de cada 1000 personas están infectadas.
+
+Pintar una curva donde se represente en el eje Y la probabilidad de encontrar al menos un contagiado en función del número de personas dado por el eje X.
+
+Esto se haría utilizando una función binomial donde la probabilidad de que alguien esté infectado es 5/1000. x sería el número de personas y es un valor que puede ir de 1 hasta 1000. Usa la función dbinom.
+
+```{r}
+p <- 5/1000
+x <- 1:1000
+#dbinom(1, size=100, p=p) #considerando una probabilidad 'p' de un suceso, la probabilidad de 1 persona infectada en una población de 100 es de ...
+probs <- 1 - dbinom(0, size=x, p=p)
+plot(x, probs)
+```
+
+Pintar una curva donde se represente en el eje Y la probabilidad de encontrar exactamente dos contagiados en función del número de personas dado por el eje X
+
+```{r}
+p <- 5/1000
+x <- 1:1000
+probs <- pbinom(2,size=x,p=p)
+plot(probs)
+```
+
+Pintar una curva donde se represente en el eje Y la probabilidad de encontrar dos o más contagiados en función del número de personas dado por el eje X
+
+```{r}
+p <- 5/1000
+x <- 1:1000
+probs <- 1 - pbinom(1,size=x,p=p)
+plot(probs)
+```
+
+Probabilida de encontar 5 o más personas contagiadas en una población de 1000
+
+```{r}
+p <- 5/1000
+x <- 1:1000
+probs <- 1-pbinom(4,size=x, p=p)
+plot(probs)
+```
